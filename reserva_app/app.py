@@ -65,6 +65,26 @@ def lista_salas():
     salas = carregar_salas()
     return render_template("listar-salas.html", salas=salas)
 
+@app.route("/editar-sala/<sala_id>", methods=["GET", "POST"])
+def editar_sala(sala_id):
+    salas = carregar_salas()
+    sala_to_edit = next((sala for sala in salas if sala["id"] == sala_id), None)
+
+    if request.method == "POST":
+        sala_to_edit["tipo"] = request.form.get("tipo")
+        sala_to_edit["capacidade"] = request.form.get("capacidade")
+        sala_to_edit["descricao"] = request.form.get("descricao")
+
+        # Save updated salas back to the CSV file
+        with open("salas.csv", "w", newline='') as csvfile:
+            writer = csv.writer(csvfile)
+            for sala in salas:
+                writer.writerow([sala['id'], sala['tipo'], sala['capacidade'], sala['descricao'], sala['ativa']])
+        
+        return redirect(url_for("lista_salas"))
+
+    return render_template("editar-sala.html", sala=sala_to_edit)
+
 @app.route("/excluir-sala/<sala_id>", methods=["POST"])
 def excluir_sala(sala_id):
     salas = carregar_salas()
@@ -122,4 +142,4 @@ def validar_usuario(email, password):
     return False
 
 if __name__ == '__main__':
-    app.run(debug=True, port=5222)
+    app.run(debug=True, port=5122)
