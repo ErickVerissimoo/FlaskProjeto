@@ -21,7 +21,9 @@
                 <ul class="navbar-nav ms-auto">
                     <li class="nav-item">
                         <a class="nav-link {% if 'redirect' in request.path %}active{% endif %}" aria-current="page" href="{{ url_for('reservas') }}">Reservas</a></li>
-
+                        <li class="nav-item">
+                            <a class="nav-link {% if 'redirectCadastro' in request.path %}active{% endif %}" href="{{ url_for('cadastro') }}">Cadastrar</a>
+                        </li>
                     <li class="nav-item">
                         <a class="nav-link {% if 'reservasredirect' in request.path %}active{% endif %}" href="{{ url_for('reservar_sala') }}">Reservar Sala</a>
                     </li>
