@@ -7,7 +7,7 @@ app = Flask(__name__, template_folder='templates')
 app.secret_key = 'passwordQUalquer'
 users_db = []
 
-#Verificar csvs 
+# Verificar os arquivos csv
 csv_files = ["salas.csv", "reservas.csv", "usuarios.csv"]
 for file in csv_files:
     if not os.path.exists(file):
@@ -34,7 +34,7 @@ def ler_do_csv(filename):
 def index():
     return render_template("index.html")
 
-#Redirecionamento das rotas
+# Rotas de redirecionamento
 @app.route("/redirectEditar")
 def redirectEditar():
     return redirect(url_for("editar_sala"))
@@ -59,8 +59,7 @@ def redirectCadastrar():
 def redirectCadastro():
     return redirect(url_for("cadastro"))
 
-
-#metodos
+# Métodos
 def cadastrar_sala(s):
     sala_id = str(uuid.uuid4())
     linha = [sala_id, s['tipo'], s['capacidade'], s['descricao'], "Sim"]
@@ -69,16 +68,18 @@ def cadastrar_sala(s):
 def carregar_salas():
     salas = []
     for linha in ler_do_csv("salas.csv"):
-        sala = {
-            "id": linha[0],
-            "tipo": linha[1],
-            "capacidade": linha[2],
-            "descricao": linha[3],
-            "ativa": linha[4]
-        }
-        salas.append(sala)
+        if linha:  # Precaução
+            sala = {
+                "id": linha[0],
+                "tipo": linha[1],
+                "capacidade": linha[2],
+                "descricao": linha[3],
+                "ativa": linha[4]
+            }
+            salas.append(sala)
     return salas
-#rotas e suas funções
+
+# Rotas e suas funções
 @app.route("/cadastrar_salas", methods=["GET", "POST"])
 def cadastrar_salas_view():
     if request.method == "POST":
@@ -86,6 +87,7 @@ def cadastrar_salas_view():
         capacidade = request.form.get("capacidade")
         descricao = request.form.get("descricao")
         cadastrar_sala({"tipo": tipo, "capacidade": capacidade, "descricao": descricao})
+        flash('Sala cadastrada com sucesso!', 'success')
         return redirect(url_for("lista_salas"))
     return render_template("cadastrar-sala.html")
 
@@ -106,18 +108,22 @@ def editar_sala(sala_id):
             writer = csv.writer(csvfile)
             for sala in salas:
                 writer.writerow([sala['id'], sala['tipo'], sala['capacidade'], sala['descricao'], sala['ativa']])
+        
         flash('Sala editada com sucesso!', 'success')
         return redirect(url_for("lista_salas"))
+    
     return render_template("editar-sala.html", sala=sala_to_edit)
 
 @app.route("/excluir-sala/<sala_id>", methods=["POST"])
 def excluir_sala(sala_id):
     salas = carregar_salas()
     salas = [sala for sala in salas if sala["id"] != sala_id]
+    
     with open("salas.csv", "w", newline='') as csvfile:
         writer = csv.writer(csvfile)
         for sala in salas:
             writer.writerow([sala['id'], sala['tipo'], sala['capacidade'], sala['descricao'], sala['ativa']])
+    
     flash('Sala excluída com sucesso!', 'success')
     return redirect(url_for("lista_salas"))
 
@@ -144,24 +150,30 @@ def reservas():
 def detalhe_reserva():
     return render_template("detalhe_reserva.html")
 
+def cadastrar_reserva(reserva):
+    csv_file_path = 'reservas.csv'
+    file_exists = os.path.isfile(csv_file_path)
+    
+    with open(csv_file_path, mode='a', newline='') as file:
+        writer = csv.writer(file)
+        if not file_exists:
+            writer.writerow(['sala_id', 'inicio'])
+        writer.writerow([reserva['sala_id'], reserva['start_time']])
+
 @app.route("/reservar_sala", methods=["GET", "POST"])
 def reservar_sala():
     if request.method == "POST":
-        nome = request.form.get("nome")
-        email = request.form.get("email")
-        sala_id = request.form.get("sala_id")
-        start_time = request.form.get("start_time")
-        end_time = request.form.get("end_time")
+        sala_id = request.form.get("sala")
+        start_time = request.form.get("inicio")
         
-        cadastrar_reserva({"nome": nome, "email": email, "sala_id": sala_id, "start_time": start_time, "end_time": end_time})
+        cadastrar_reserva({
+            "sala_id": sala_id,
+            "start_time": start_time,
+        })
         
         flash('Reserva realizada com sucesso!', 'success')
-        return redirect(url_for("detalhe_reserva"))  
     
     return render_template("reservar-sala.html")
-
-def cadastrar_reserva(r):
-    escrever_csv("reservas.csv", [r['nome'], r['email'], r['sala_id'], r['start_time'], r['end_time']])
 
 @app.route('/cadastro', methods=['GET', 'POST'])
 def cadastro():
@@ -171,7 +183,6 @@ def cadastro():
         password = request.form['password']
   
         users_db.append({'nome': nome, 'email': email, 'password': password})
-        
         cadastrar_usuario({'nome': nome, 'email': email, 'password': password})
         
         flash('Cadastro realizado com sucesso!', 'success')
