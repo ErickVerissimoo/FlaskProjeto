@@ -34,7 +34,6 @@ def ler_do_csv(filename):
 def index():
     return render_template("index.html")
 
-# Rotas de redirecionamento
 @app.route("/redirectEditar")
 def redirectEditar():
     return redirect(url_for("editar_sala"))
@@ -60,15 +59,39 @@ def redirectCadastro():
     return redirect(url_for("cadastro"))
 
 # Métodos
+def buscar_insercao_binaria(salas, nova_sala):
+    esquerda, direita = 0, len(salas) - 1
+    while esquerda <= direita:
+        meio = (esquerda + direita) // 2
+        if salas[meio]['id'] < nova_sala['id']:
+            esquerda = meio + 1
+        else:
+            direita = meio - 1
+    return esquerda  
+
 def cadastrar_sala(s):
     sala_id = str(uuid.uuid4())
     linha = [sala_id, s['tipo'], s['capacidade'], s['descricao'], "Sim"]
-    escrever_csv("salas.csv", linha)
+    
+
+    salas = carregar_salas_ordenadas()
+    
+   
+    indice_insercao = buscar_insercao_binaria(salas, {'id': sala_id})
+    
+ 
+    salas.insert(indice_insercao, {'id': sala_id, 'tipo': s['tipo'], 'capacidade': s['capacidade'], 'descricao': s['descricao'], 'ativa': "Sim"})
+    
+    
+    with open("salas.csv", "w", newline='') as csvfile:
+        writer = csv.writer(csvfile)
+        for sala in salas:
+            writer.writerow([sala['id'], sala['tipo'], sala['capacidade'], sala['descricao'], sala['ativa']])
 
 def carregar_salas():
     salas = []
     for linha in ler_do_csv("salas.csv"):
-        if linha:  
+        if linha: 
             sala = {
                 "id": linha[0],
                 "tipo": linha[1],
@@ -82,11 +105,11 @@ def carregar_salas():
 def carregar_salas_ordenadas():
     salas = carregar_salas()  
     
-   
+    
     for i in range(len(salas)):
         for j in range(len(salas) - 1):
             if salas[j]['id'] > salas[j + 1]['id']:
-              
+               
                 salas[j], salas[j + 1] = salas[j + 1], salas[j]
     
     return salas
@@ -104,16 +127,40 @@ def busca_binaria(salas, sala_id):
             direita = meio - 1
     return -1  
 
-# Rotas e suas funções
+
+def buscar_insercao_binaria_usuario(users, novo_usuario):
+    esquerda, direita = 0, len(users) - 1
+    while esquerda <= direita:
+        meio = (esquerda + direita) // 2
+        if users[meio]['email'] < novo_usuario['email']:
+            esquerda = meio + 1
+        else:
+            direita = meio - 1
+    return esquerda  
+
+def cadastrar_usuario(u):
+  
+    indice_insercao = buscar_insercao_binaria_usuario(users_db, {'email': u['email']})
+    
+
+    users_db.insert(indice_insercao, {'nome': u['nome'], 'email': u['email'], 'password': u['password']})
+    
+    
+    escrever_csv("usuarios.csv", [u['nome'], u['email'], u['password']])
+
+
 @app.route("/cadastrar_salas", methods=["GET", "POST"])
 def cadastrar_salas_view():
     if request.method == "POST":
         tipo = request.form.get("tipo")
         capacidade = request.form.get("capacidade")
         descricao = request.form.get("descricao")
+        
         cadastrar_sala({"tipo": tipo, "capacidade": capacidade, "descricao": descricao})
+        
         flash('Sala cadastrada com sucesso!', 'success')
         return redirect(url_for("lista_salas"))
+    
     return render_template("cadastrar-sala.html")
 
 @app.route("/lista_salas")
@@ -124,6 +171,7 @@ def lista_salas():
 @app.route("/editar_sala/<sala_id>", methods=["GET", "POST"])
 def editar_sala(sala_id):
     salas = carregar_salas()
+    
     sala_to_edit = next((sala for sala in salas if sala["id"] == sala_id), None)
     
     if request.method == "POST":
@@ -144,12 +192,12 @@ def editar_sala(sala_id):
 @app.route("/excluir-sala/<sala_id>", methods=["POST"])
 def excluir_sala(sala_id):
     salas = carregar_salas_ordenadas()  
-    indice = busca_binaria(salas, sala_id)  
+    indice = busca_binaria(salas, sala_id) 
 
     if indice != -1: 
-        del salas[indice] 
+        del salas[indice]  
         
-        
+       
         with open("salas.csv", "w", newline='') as csvfile:
             writer = csv.writer(csvfile)
             for sala in salas:
@@ -187,12 +235,15 @@ def detalhe_reserva():
 
 def cadastrar_reserva(reserva):
     csv_file_path = 'reservas.csv'
+    
     file_exists = os.path.isfile(csv_file_path)
     
     with open(csv_file_path, mode='a', newline='') as file:
         writer = csv.writer(file)
+        
         if not file_exists:
             writer.writerow(['sala_id', 'inicio'])
+        
         writer.writerow([reserva['sala_id'], reserva['start_time']])
 
 @app.route("/reservar_sala", methods=["GET", "POST"])
@@ -217,16 +268,13 @@ def cadastro():
         email = request.form['email']
         password = request.form['password']
   
-        users_db.append({'nome': nome, 'email': email, 'password': password})
         cadastrar_usuario({'nome': nome, 'email': email, 'password': password})
         
         flash('Cadastro realizado com sucesso!', 'success')
+        
         return redirect(url_for('index'))
     
     return render_template('cadastro.html')
-
-def cadastrar_usuario(u):
-    escrever_csv("usuarios.csv", [u['nome'], u['email'], u['password']])
 
 if __name__ == '__main__':
     app.run(debug=True, port=5112)
