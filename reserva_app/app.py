@@ -7,7 +7,7 @@ app = Flask(__name__, template_folder='templates')
 app.secret_key = 'passwordQUalquer'
 users_db = []
 
-# Verificar os arquivos csv
+
 csv_files = ["salas.csv", "reservas.csv", "usuarios.csv"]
 for file in csv_files:
     if not os.path.exists(file):
@@ -68,7 +68,7 @@ def cadastrar_sala(s):
 def carregar_salas():
     salas = []
     for linha in ler_do_csv("salas.csv"):
-        if linha:  # Precaução
+        if linha:  
             sala = {
                 "id": linha[0],
                 "tipo": linha[1],
@@ -78,6 +78,31 @@ def carregar_salas():
             }
             salas.append(sala)
     return salas
+
+def carregar_salas_ordenadas():
+    salas = carregar_salas()  
+    
+   
+    for i in range(len(salas)):
+        for j in range(len(salas) - 1):
+            if salas[j]['id'] > salas[j + 1]['id']:
+              
+                salas[j], salas[j + 1] = salas[j + 1], salas[j]
+    
+    return salas
+
+def busca_binaria(salas, sala_id):
+    esquerda, direita = 0, len(salas) - 1
+    while esquerda <= direita:
+        meio = (esquerda + direita) // 2
+        sala_atual = salas[meio]
+        if sala_atual['id'] == sala_id:
+            return meio
+        elif sala_atual['id'] < sala_id:
+            esquerda = meio + 1
+        else:
+            direita = meio - 1
+    return -1  
 
 # Rotas e suas funções
 @app.route("/cadastrar_salas", methods=["GET", "POST"])
@@ -100,10 +125,12 @@ def lista_salas():
 def editar_sala(sala_id):
     salas = carregar_salas()
     sala_to_edit = next((sala for sala in salas if sala["id"] == sala_id), None)
+    
     if request.method == "POST":
         sala_to_edit["tipo"] = request.form.get("tipo")
         sala_to_edit["capacidade"] = request.form.get("capacidade")
         sala_to_edit["descricao"] = request.form.get("descricao")
+        
         with open("salas.csv", "w", newline='') as csvfile:
             writer = csv.writer(csvfile)
             for sala in salas:
@@ -116,20 +143,28 @@ def editar_sala(sala_id):
 
 @app.route("/excluir-sala/<sala_id>", methods=["POST"])
 def excluir_sala(sala_id):
-    salas = carregar_salas()
-    salas = [sala for sala in salas if sala["id"] != sala_id]
-    
-    with open("salas.csv", "w", newline='') as csvfile:
-        writer = csv.writer(csvfile)
-        for sala in salas:
-            writer.writerow([sala['id'], sala['tipo'], sala['capacidade'], sala['descricao'], sala['ativa']])
-    
-    flash('Sala excluída com sucesso!', 'success')
+    salas = carregar_salas_ordenadas()  
+    indice = busca_binaria(salas, sala_id)  
+
+    if indice != -1: 
+        del salas[indice] 
+        
+        
+        with open("salas.csv", "w", newline='') as csvfile:
+            writer = csv.writer(csvfile)
+            for sala in salas:
+                writer.writerow([sala['id'], sala['tipo'], sala['capacidade'], sala['descricao'], sala['ativa']])
+        
+        flash('Sala excluída com sucesso!', 'success')
+    else:
+        flash('Sala não encontrada!', 'error')
+
     return redirect(url_for("lista_salas"))
 
 @app.route("/desativar-sala/<sala_id>", methods=["POST"])
 def desativar_sala(sala_id):
     salas = carregar_salas()
+    
     for sala in salas:
         if sala["id"] == sala_id:
             sala["ativa"] = "Não" if sala["ativa"] == "Sim" else "Sim"
